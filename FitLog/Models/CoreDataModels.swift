@@ -50,11 +50,13 @@ extension ExerciseRecord {
 
     @NSManaged public var id: UUID?
     @NSManaged public var name: String?
+    @NSManaged public var group: String?
     @NSManaged public var order: Int16
     @NSManaged public var workout: WorkoutRecord?
     @NSManaged public var sets: NSSet?
 
     var wrappedName: String { name ?? "Exercise" }
+    var wrappedGroup: String { group ?? "" }
 
     var setsArray: [SetRecord] {
         (sets as? Set<SetRecord> ?? []).sorted { $0.order < $1.order }

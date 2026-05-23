@@ -97,11 +97,13 @@ final class WorkoutStore: ObservableObject {
 struct DraftExercise: Identifiable {
     var id    = UUID()
     var name  = ""
+    var group = ""
     var sets: [DraftSet] = [DraftSet()]
 }
 
 struct DraftSet: Identifiable {
-    var id     = UUID()
-    var reps   = 10
-    var weight = 0.0
+    var id        = UUID()
+    var reps      = 10
+    var weight    = 0.0
+    var completed = false
 }

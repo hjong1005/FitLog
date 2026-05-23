@@ -90,9 +90,8 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbarBackground(Color.appBG, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
-            // Swap placeholder for real NewWorkoutView when ready
             .sheet(isPresented: $showNewWorkout) {
-                NewWorkoutPlaceholder()
+                NewWorkoutView()
             }
         }
     }
@@ -233,41 +232,6 @@ struct EmptyRecentView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
-    }
-}
-
-// ═══════════════════════════════════════════════════════════
-// MARK: - NewWorkoutPlaceholder  (replace with real view)
-// ═══════════════════════════════════════════════════════════
-struct NewWorkoutPlaceholder: View {
-    @Environment(\.dismiss) private var dismiss
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.appBG.ignoresSafeArea()
-                VStack(spacing: 16) {
-                    Image(systemName: "dumbbell.fill")
-                        .font(.system(size: 52))
-                        .foregroundColor(.brand)
-                    Text("New Workout")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(.textPri)
-                    Text("NewWorkoutView will be added here in the next build phase.")
-                        .font(.system(size: 14))
-                        .foregroundColor(.textTer)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                }
-            }
-            .navigationTitle("New Workout")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
-                        .foregroundColor(.brand)
-                }
-            }
-        }
     }
 }
 
