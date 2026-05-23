@@ -2,7 +2,7 @@ import CoreData
 import SwiftUI
 
 struct ReviewWorkoutView: View {
-    let image: UIImage
+    let image: UIImage?
     let onSave: () -> Void
 
     @Environment(\.managedObjectContext) private var ctx
@@ -10,7 +10,17 @@ struct ReviewWorkoutView: View {
     @State private var workoutName = "Workout"
     @State private var workoutDate = Date()
     @State private var exercises: [DraftExercise] = []
-    @State private var isAnalyzing = true
+    @State private var isAnalyzing: Bool
+    @State private var showEmptyAlert = false
+
+    init(image: UIImage? = nil, onSave: @escaping () -> Void) {
+        self.image = image
+        self.onSave = onSave
+        _isAnalyzing = State(initialValue: image != nil)
+        if image == nil {
+            _exercises = State(initialValue: [])
+        }
+    }
 
     var body: some View {
         ZStack {
@@ -42,13 +52,25 @@ struct ReviewWorkoutView: View {
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save") { saveWorkout() }
+                Button("Save") {
+                        if exercises.contains(where: { !$0.name.isEmpty }) {
+                            saveWorkout()
+                        } else {
+                            showEmptyAlert = true
+                        }
+                    }
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(.brand)
                     .disabled(isAnalyzing)
             }
         }
+        .alert("No Exercises", isPresented: $showEmptyAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Add at least one exercise before saving your workout.")
+        }
         .task {
+            guard let image else { return }
             let result = await WorkoutImageAnalyzer.analyze(image: image)
             workoutName = result.workoutName
             exercises = result.exercises
@@ -88,17 +110,29 @@ struct ReviewWorkoutView: View {
     private var exercisesList: some View {
         ForEach(Array(exercises.enumerated()), id: \.element.id) { index, exercise in
             if shouldShowGroupHeader(at: index) {
-                Text(exercise.group.uppercased())
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.brandAmber)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, index == 0 ? 0 : 4)
+                GroupHeader(
+                    name: groupBinding(at: index),
+                    onDelete: { removeGroup(at: index) }
+                )
+                .padding(.top, index == 0 ? 0 : 4)
             }
 
             ExerciseEditCard(exercise: $exercises[index]) {
                 exercises.removeAll { $0.id == exercise.id }
             }
         }
+    }
+
+    private func groupBinding(at index: Int) -> Binding<String> {
+        Binding(
+            get: { exercises[index].group },
+            set: { newName in
+                let oldName = exercises[index].group
+                for i in exercises.indices where exercises[i].group == oldName {
+                    exercises[i].group = newName
+                }
+            }
+        )
     }
 
     private func shouldShowGroupHeader(at index: Int) -> Bool {
@@ -108,21 +142,54 @@ struct ReviewWorkoutView: View {
         return exercises[index - 1].group != group
     }
 
+    private func removeGroup(at index: Int) {
+        let groupName = exercises[index].group
+        exercises.removeAll { $0.group == groupName }
+    }
+
     private var addExerciseButton: some View {
-        Button {
-            exercises.append(DraftExercise())
-        } label: {
-            HStack {
-                Image(systemName: "plus.circle.fill")
-                Text("Add Exercise")
+        VStack(spacing: 10) {
+            Button {
+                let lastGroup = exercises.last?.group ?? ""
+                exercises.append(DraftExercise(group: lastGroup))
+            } label: {
+                HStack {
+                    Image(systemName: "plus.circle.fill")
+                    Text("Add Exercise")
+                }
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(.brand)
+                .frame(maxWidth: .infinity)
+                .padding(14)
+                .background(Color.surface1)
+                .cornerRadius(.rMD)
             }
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundColor(.brand)
-            .frame(maxWidth: .infinity)
-            .padding(14)
-            .background(Color.surface1)
-            .cornerRadius(.rMD)
+
+            Button {
+                addGroup()
+            } label: {
+                HStack {
+                    Image(systemName: "folder.badge.plus")
+                    Text("Add Group")
+                }
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(.brandAmber)
+                .frame(maxWidth: .infinity)
+                .padding(14)
+                .background(Color.surface1)
+                .cornerRadius(.rMD)
+            }
         }
+    }
+
+    private func addGroup() {
+        var groupIndex = 1
+        let existingGroups = Set(exercises.map(\.group).filter { !$0.isEmpty })
+        while existingGroups.contains("Group \(groupIndex)") {
+            groupIndex += 1
+        }
+        let groupName = "Group \(groupIndex)"
+        exercises.append(DraftExercise(group: groupName))
     }
 
     // MARK: - Save
@@ -155,6 +222,35 @@ struct ReviewWorkoutView: View {
 
         try? ctx.save()
         onSave()
+    }
+}
+
+// MARK: - Group Header
+
+private struct GroupHeader: View {
+    @Binding var name: String
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "folder.fill")
+                .font(.system(size: 12))
+                .foregroundColor(.brandAmber)
+
+            TextField("Group Name", text: $name)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundColor(.brandAmber)
+                .textInputAutocapitalization(.characters)
+
+            Spacer()
+
+            Button(role: .destructive) { onDelete() } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(.surface3)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

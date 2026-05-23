@@ -64,7 +64,10 @@ struct HomeView: View {
                         }
 
                         // ── 4. Recent workouts
-                        RecentSection(workouts: Array(all.prefix(3)))
+                        RecentSection(workouts: Array(all.prefix(3))) { workout in
+                            ctx.delete(workout)
+                            try? ctx.save()
+                        }
                             .padding(.horizontal, 16)
                             .padding(.top, 20)
 
@@ -189,6 +192,9 @@ struct LastTrainedBanner: View {
 // ═══════════════════════════════════════════════════════════
 struct RecentSection: View {
     let workouts: [WorkoutRecord]
+    var onDelete: ((WorkoutRecord) -> Void)?
+
+    @State private var selectedWorkout: WorkoutRecord?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -197,7 +203,6 @@ struct RecentSection: View {
                     .font(.system(size: 20, weight: .bold))
                     .foregroundColor(.textPri)
                 Spacer()
-                // Placeholder for History navigation
                 Text("See All")
                     .font(.system(size: 15))
                     .foregroundColor(.brand)
@@ -207,10 +212,17 @@ struct RecentSection: View {
                 EmptyRecentView()
             } else {
                 ForEach(workouts) { w in
-                    // Wrap in NavigationLink once WorkoutDetailView exists
-                    WorkoutCard(workout: w)
+                    SwipeToDeleteCard(
+                        onDelete: { onDelete?(w) },
+                        onTap: { selectedWorkout = w }
+                    ) {
+                        WorkoutCard(workout: w)
+                    }
                 }
             }
+        }
+        .navigationDestination(item: $selectedWorkout) { workout in
+            WorkoutDetailView(workout: workout)
         }
     }
 }
@@ -232,6 +244,91 @@ struct EmptyRecentView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// MARK: - Swipe to Delete Card
+// ═══════════════════════════════════════════════════════════
+private struct SwipeToDeleteCard<Content: View>: View {
+    let onDelete: () -> Void
+    var onTap: (() -> Void)?
+    @ViewBuilder let content: Content
+
+    @State private var offset: CGFloat = 0
+    @State private var showDelete = false
+    @State private var isHorizontalDrag = false
+    private let threshold: CGFloat = -80
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            if showDelete {
+                Button {
+                    withAnimation { onDelete() }
+                } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: "trash.fill")
+                            .font(.system(size: 18))
+                        Text("Delete")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundColor(.white)
+                    .frame(width: 70)
+                    .frame(maxHeight: .infinity)
+                }
+                .background(Color.brand)
+                .cornerRadius(.rMD)
+            }
+
+            content
+                .offset(x: offset)
+        }
+        .contentShape(Rectangle())
+        .clipped()
+        .onTapGesture {
+            if showDelete {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    offset = 0
+                    showDelete = false
+                }
+            } else {
+                onTap?()
+            }
+        }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 15)
+                .onChanged { value in
+                    if !isHorizontalDrag {
+                        let horizontal = abs(value.translation.width)
+                        let vertical = abs(value.translation.height)
+                        if horizontal > vertical * 1.5 {
+                            isHorizontalDrag = true
+                        } else {
+                            return
+                        }
+                    }
+                    if showDelete && value.translation.width > 0 {
+                        let newOffset = threshold + value.translation.width
+                        offset = min(newOffset, 0)
+                        showDelete = offset < threshold / 2
+                    } else if value.translation.width < 0 {
+                        offset = value.translation.width
+                        showDelete = value.translation.width < threshold
+                    }
+                }
+                .onEnded { _ in
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        if offset < threshold {
+                            offset = threshold
+                            showDelete = true
+                        } else {
+                            offset = 0
+                            showDelete = false
+                        }
+                    }
+                    isHorizontalDrag = false
+                }
+        )
     }
 }
 

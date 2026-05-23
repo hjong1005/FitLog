@@ -11,6 +11,7 @@ struct NewWorkoutView: View {
     @State private var showDeniedAlert = false
     @State private var deniedAlertMessage = ""
     @State private var showReview = false
+    @State private var showManualEntry = false
 
     var body: some View {
         NavigationStack {
@@ -27,6 +28,22 @@ struct NewWorkoutView: View {
                     Text("Tap + to scan a workout image")
                         .font(.system(size: 14))
                         .foregroundColor(.textTer)
+
+                    Button {
+                        showManualEntry = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "square.and.pencil")
+                            Text("Add Workout")
+                        }
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(Color.brand)
+                        .cornerRadius(.rMD)
+                    }
+                    .padding(.top, 8)
                 }
             }
             .navigationTitle("New Workout")
@@ -62,6 +79,11 @@ struct NewWorkoutView: View {
                     ReviewWorkoutView(image: image) {
                         dismiss()
                     }
+                }
+            }
+            .navigationDestination(isPresented: $showManualEntry) {
+                ReviewWorkoutView {
+                    dismiss()
                 }
             }
             .fullScreenCover(isPresented: $showCamera, onDismiss: navigateIfImageCaptured) {
