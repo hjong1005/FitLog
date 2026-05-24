@@ -69,7 +69,7 @@ struct AllWorkoutsView: View {
     // MARK: - Day Filter Bar
 
     private var dayFilterBar: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 0) {
             ForEach(0..<7, id: \.self) { index in
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
@@ -77,17 +77,15 @@ struct AllWorkoutsView: View {
                     }
                 } label: {
                     Text(dayLabels[index])
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(size: 13, weight: .bold))
                         .foregroundColor(selectedDay == index ? .white : .textSec)
-                        .frame(width: 38, height: 38)
+                        .frame(maxWidth: .infinity)
+                        .aspectRatio(1, contentMode: .fit)
                         .background(
                             Circle()
-                                .fill(selectedDay == index ? Color.brand : Color.clear)
+                                .fill(selectedDay == index ? Color.brand : Color.surface2)
                         )
-                        .overlay(
-                            Circle()
-                                .stroke(selectedDay == index ? Color.clear : Color.surface3, lineWidth: 1.5)
-                        )
+                        .clipShape(Circle())
                 }
             }
         }
