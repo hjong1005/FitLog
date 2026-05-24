@@ -128,7 +128,7 @@ struct ReviewWorkoutView: View {
             get: { exercises[index].group },
             set: { newName in
                 let oldName = exercises[index].group
-                for i in exercises.indices where exercises[i].group == oldName {
+                for i in exercises.indices where exercises[i].hasGroup && exercises[i].group == oldName {
                     exercises[i].group = newName
                 }
             }
@@ -136,22 +136,22 @@ struct ReviewWorkoutView: View {
     }
 
     private func shouldShowGroupHeader(at index: Int) -> Bool {
-        let group = exercises[index].group
-        guard !group.isEmpty else { return false }
+        guard exercises[index].hasGroup else { return false }
         if index == 0 { return true }
-        return exercises[index - 1].group != group
+        let group = exercises[index].group
+        return exercises[index - 1].group != group || !exercises[index - 1].hasGroup
     }
 
     private func removeGroup(at index: Int) {
         let groupName = exercises[index].group
-        exercises.removeAll { $0.group == groupName }
+        exercises.removeAll { $0.hasGroup && $0.group == groupName }
     }
 
     private var addExerciseButton: some View {
         VStack(spacing: 10) {
             Button {
-                let lastGroup = exercises.last?.group ?? ""
-                exercises.append(DraftExercise(group: lastGroup))
+                let last = exercises.last
+                exercises.append(DraftExercise(group: last?.group ?? "", hasGroup: last?.hasGroup ?? false))
             } label: {
                 HStack {
                     Image(systemName: "plus.circle.fill")
@@ -189,7 +189,7 @@ struct ReviewWorkoutView: View {
             groupIndex += 1
         }
         let groupName = "Group \(groupIndex)"
-        exercises.append(DraftExercise(group: groupName))
+        exercises.append(DraftExercise(group: groupName, hasGroup: true))
     }
 
     // MARK: - Save

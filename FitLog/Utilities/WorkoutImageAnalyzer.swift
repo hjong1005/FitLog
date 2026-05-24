@@ -79,6 +79,7 @@ enum WorkoutImageAnalyzer {
                 exercises.append(DraftExercise(
                     name: inline.name,
                     group: currentGroup ?? "",
+                    hasGroup: currentGroup != nil,
                     sets: inline.sets
                 ))
                 continue
@@ -119,6 +120,7 @@ enum WorkoutImageAnalyzer {
             exercises.append(DraftExercise(
                 name: t,
                 group: group ?? "",
+                hasGroup: group != nil,
                 sets: sets
             ))
         } else {

@@ -56,14 +56,7 @@ struct HomeView: View {
                         .padding(.horizontal, 16)
                         .padding(.top, 12)
 
-                        // ── 3. Last trained banner
-                        if let last = store.lastWorkout(from: all) {
-                            LastTrainedBanner(workout: last)
-                                .padding(.horizontal, 16)
-                                .padding(.top, 12)
-                        }
-
-                        // ── 4. Recent workouts
+                        // ── 3. Recent workouts
                         RecentSection(workouts: Array(all.prefix(3))) { workout in
                             ctx.delete(workout)
                             try? ctx.save()
@@ -203,9 +196,11 @@ struct RecentSection: View {
                     .font(.system(size: 20, weight: .bold))
                     .foregroundColor(.textPri)
                 Spacer()
-                Text("See All")
-                    .font(.system(size: 15))
-                    .foregroundColor(.brand)
+                NavigationLink(destination: AllWorkoutsView()) {
+                    Text("See All")
+                        .font(.system(size: 15))
+                        .foregroundColor(.brand)
+                }
             }
 
             if workouts.isEmpty {
@@ -250,7 +245,7 @@ struct EmptyRecentView: View {
 // ═══════════════════════════════════════════════════════════
 // MARK: - Swipe to Delete Card
 // ═══════════════════════════════════════════════════════════
-private struct SwipeToDeleteCard<Content: View>: View {
+struct SwipeToDeleteCard<Content: View>: View {
     let onDelete: () -> Void
     var onTap: (() -> Void)?
     @ViewBuilder let content: Content

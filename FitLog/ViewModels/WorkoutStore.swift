@@ -95,9 +95,10 @@ final class WorkoutStore: ObservableObject {
 
 // MARK: - Draft models (used by NewWorkoutView, included for future use)
 struct DraftExercise: Identifiable {
-    var id    = UUID()
-    var name  = ""
-    var group = ""
+    var id       = UUID()
+    var name     = ""
+    var group    = ""
+    var hasGroup = false
     var sets: [DraftSet] = [DraftSet()]
 }
 
