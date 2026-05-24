@@ -68,14 +68,11 @@ final class WorkoutStore: ObservableObject {
     // MARK: - Helpers
     func mondayOfCurrentWeek() -> Date? {
         let cal = Calendar.current
-        var comps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())
-        comps.weekday = 2 // Monday
-        return cal.nextDate(
-            after: Date(),
-            matching: comps,
-            matchingPolicy: .previousTimePreservingSmallerComponents,
-            direction: .backward
-        )
+        let today = cal.startOfDay(for: Date())
+        let weekday = cal.component(.weekday, from: today)
+        // Days since Monday: Sun=6, Mon=0, Tue=1, Wed=2, Thu=3, Fri=4, Sat=5
+        let daysSinceMonday = (weekday + 5) % 7
+        return cal.date(byAdding: .day, value: -daysSinceMonday, to: today)
     }
 
     func weekRangeString() -> String {

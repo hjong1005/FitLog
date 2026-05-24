@@ -32,21 +32,22 @@ struct HomeView: View {
             ZStack(alignment: .bottomTrailing) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
-                        // ── 1. Hero weekly card
-                        HeroCard(count: store.workoutsThisWeek(from: all),
-                                 range: store.weekRangeString())
+                        // ── 1. Hero lifetime card
+                        HeroCard(count: all.count,
+                                 label: "LIFETIME",
+                                 subtitle: "total workouts")
                             .padding(.horizontal, 16)
                             .padding(.top, 8)
 
                         // ── 2. Stat tiles
                         HStack(spacing: 10) {
                             StatTile(
-                                value: "\(all.count)",
-                                label: "Lifetime"
-                            )
-                            StatTile(
                                 value: "\(store.workoutsLastMonth(from: all))",
                                 label: "Last Month"
+                            )
+                            StatTile(
+                                value: "\(store.workoutsThisWeek(from: all))",
+                                label: store.weekRangeString()
                             )
                             StatTile(
                                 value: "\(store.weeklyStreak(from: all)) 🔥",
@@ -98,11 +99,11 @@ struct HomeView: View {
 // ═══════════════════════════════════════════════════════════
 struct HeroCard: View {
     let count: Int
-    let range: String
+    var label: String = "THIS WEEK"
+    var subtitle: String = "workouts"
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            // Gradient background
             LinearGradient(
                 colors: [.brand, .brandAmber],
                 startPoint: .topLeading,
@@ -110,12 +111,11 @@ struct HeroCard: View {
             )
             .cornerRadius(.rLG)
 
-            // Subtle noise overlay for depth
             RoundedRectangle(cornerRadius: .rLG)
                 .fill(.white.opacity(0.04))
 
             VStack(alignment: .leading, spacing: 3) {
-                Text("THIS WEEK")
+                Text(label)
                     .font(.system(size: 11, weight: .bold))
                     .tracking(0.8)
                     .opacity(0.85)
@@ -125,7 +125,7 @@ struct HeroCard: View {
                     .tracking(-3)
                     .lineLimit(1)
 
-                Text("workouts · \(range)")
+                Text(subtitle)
                     .font(.system(size: 13))
                     .opacity(0.78)
             }

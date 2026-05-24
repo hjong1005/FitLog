@@ -94,7 +94,7 @@ struct ReviewWorkoutView: View {
                 .background(Color.surface2)
                 .cornerRadius(.rSM)
 
-            DatePicker("Date", selection: $workoutDate, displayedComponents: .date)
+            DatePicker("Date", selection: $workoutDate, in: ...Date(), displayedComponents: .date)
                 .font(.system(size: 16))
                 .foregroundColor(.textPri)
                 .tint(.brand)
