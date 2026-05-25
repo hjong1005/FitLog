@@ -1,5 +1,6 @@
 import AVFoundation
 import Photos
+import PhotosUI
 import SwiftUI
 
 struct NewWorkoutView: View {
@@ -7,7 +8,8 @@ struct NewWorkoutView: View {
 
     @State private var showCamera = false
     @State private var showPhotoPicker = false
-    @State private var capturedImage: UIImage?
+    @State private var cameraImage: UIImage?
+    @State private var selectedImages: [UIImage] = []
     @State private var showDeniedAlert = false
     @State private var deniedAlertMessage = ""
     @State private var showReview = false
@@ -75,10 +77,8 @@ struct NewWorkoutView: View {
                 }
             }
             .navigationDestination(isPresented: $showReview) {
-                if let image = capturedImage {
-                    ReviewWorkoutView(image: image) {
-                        dismiss()
-                    }
+                ReviewWorkoutView(images: selectedImages) {
+                    dismiss()
                 }
             }
             .navigationDestination(isPresented: $showManualEntry) {
@@ -86,12 +86,12 @@ struct NewWorkoutView: View {
                     dismiss()
                 }
             }
-            .fullScreenCover(isPresented: $showCamera, onDismiss: navigateIfImageCaptured) {
-                ImagePicker(sourceType: .camera, selectedImage: $capturedImage)
+            .fullScreenCover(isPresented: $showCamera, onDismiss: handleCameraDismiss) {
+                ImagePicker(sourceType: .camera, selectedImage: $cameraImage)
                     .ignoresSafeArea()
             }
-            .fullScreenCover(isPresented: $showPhotoPicker, onDismiss: navigateIfImageCaptured) {
-                ImagePicker(sourceType: .photoLibrary, selectedImage: $capturedImage)
+            .fullScreenCover(isPresented: $showPhotoPicker, onDismiss: handlePhotosDismiss) {
+                MultiImagePicker(selectedImages: $selectedImages)
             }
             .alert("Permission Required", isPresented: $showDeniedAlert) {
                 Button("No", role: .cancel) { }
@@ -108,8 +108,16 @@ struct NewWorkoutView: View {
 
     // MARK: - Navigation
 
-    private func navigateIfImageCaptured() {
-        if capturedImage != nil {
+    private func handleCameraDismiss() {
+        if let image = cameraImage {
+            selectedImages = [image]
+            cameraImage = nil
+            showReview = true
+        }
+    }
+
+    private func handlePhotosDismiss() {
+        if !selectedImages.isEmpty {
             showReview = true
         }
     }
@@ -121,12 +129,12 @@ struct NewWorkoutView: View {
 
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
-            capturedImage = nil
+            cameraImage = nil
             showCamera = true
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { granted in
                 if granted {
-                    capturedImage = nil
+                    cameraImage = nil
                     showCamera = true
                 }
             }
@@ -139,24 +147,8 @@ struct NewWorkoutView: View {
     }
 
     private func handlePhotosAction() {
-        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        switch status {
-        case .authorized, .limited:
-            capturedImage = nil
-            showPhotoPicker = true
-        case .notDetermined:
-            PHPhotoLibrary.requestAuthorization(for: .readWrite) { newStatus in
-                if newStatus == .authorized || newStatus == .limited {
-                    capturedImage = nil
-                    showPhotoPicker = true
-                }
-            }
-        case .denied, .restricted:
-            deniedAlertMessage = "Allow FitLog to access your photos to import workout images?"
-            showDeniedAlert = true
-        @unknown default:
-            break
-        }
+        selectedImages = []
+        showPhotoPicker = true
     }
 }
 
@@ -199,6 +191,65 @@ struct ImagePicker: UIViewControllerRepresentable {
 
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             parent.dismiss()
+        }
+    }
+}
+
+// MARK: - MultiImagePicker (PHPickerViewController wrapper)
+
+struct MultiImagePicker: UIViewControllerRepresentable {
+    @Binding var selectedImages: [UIImage]
+    @Environment(\.dismiss) private var dismiss
+
+    func makeUIViewController(context: Context) -> PHPickerViewController {
+        var config = PHPickerConfiguration()
+        config.selectionLimit = 0
+        config.filter = .images
+        let picker = PHPickerViewController(configuration: config)
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, PHPickerViewControllerDelegate {
+        let parent: MultiImagePicker
+
+        init(_ parent: MultiImagePicker) {
+            self.parent = parent
+        }
+
+        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            guard !results.isEmpty else {
+                parent.dismiss()
+                return
+            }
+
+            var loadedImages = Array<UIImage?>(repeating: nil, count: results.count)
+            let lock = NSLock()
+            let group = DispatchGroup()
+
+            for (index, result) in results.enumerated() {
+                guard result.itemProvider.canLoadObject(ofClass: UIImage.self) else { continue }
+                group.enter()
+                result.itemProvider.loadObject(ofClass: UIImage.self) { object, _ in
+                    if let image = object as? UIImage {
+                        lock.lock()
+                        loadedImages[index] = image
+                        lock.unlock()
+                    }
+                    group.leave()
+                }
+            }
+
+            group.notify(queue: .main) {
+                self.parent.selectedImages = loadedImages.compactMap { $0 }
+                self.parent.dismiss()
+            }
         }
     }
 }

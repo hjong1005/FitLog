@@ -8,6 +8,24 @@ enum WorkoutImageAnalyzer {
         var exercises: [DraftExercise]
     }
 
+    static func analyze(images: [UIImage]) async -> Result {
+        var allExercises: [DraftExercise] = []
+        var workoutName = "Workout"
+
+        for image in images {
+            let result = await analyze(image: image)
+            if workoutName == "Workout" && result.workoutName != "Workout" {
+                workoutName = result.workoutName
+            }
+            allExercises.append(contentsOf: result.exercises)
+        }
+
+        if allExercises.isEmpty {
+            return Result(workoutName: workoutName, exercises: [DraftExercise()])
+        }
+        return Result(workoutName: workoutName, exercises: allExercises)
+    }
+
     static func analyze(image: UIImage) async -> Result {
         guard let cgImage = image.cgImage else {
             return Result(workoutName: "Workout", exercises: [DraftExercise()])

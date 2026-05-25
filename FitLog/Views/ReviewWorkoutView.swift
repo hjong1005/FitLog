@@ -2,7 +2,7 @@ import CoreData
 import SwiftUI
 
 struct ReviewWorkoutView: View {
-    let image: UIImage?
+    let images: [UIImage]
     let onSave: () -> Void
 
     @Environment(\.managedObjectContext) private var ctx
@@ -13,13 +13,21 @@ struct ReviewWorkoutView: View {
     @State private var isAnalyzing: Bool
     @State private var showEmptyAlert = false
 
-    init(image: UIImage? = nil, onSave: @escaping () -> Void) {
-        self.image = image
+    init(images: [UIImage] = [], onSave: @escaping () -> Void) {
+        self.images = images
         self.onSave = onSave
-        _isAnalyzing = State(initialValue: image != nil)
-        if image == nil {
+        _isAnalyzing = State(initialValue: !images.isEmpty)
+        if images.isEmpty {
             _exercises = State(initialValue: [])
         }
+    }
+
+    init(templateName: String, templateExercises: [DraftExercise], onSave: @escaping () -> Void) {
+        self.images = []
+        self.onSave = onSave
+        _isAnalyzing = State(initialValue: false)
+        _workoutName = State(initialValue: templateName)
+        _exercises = State(initialValue: templateExercises)
     }
 
     var body: some View {
@@ -30,13 +38,16 @@ struct ReviewWorkoutView: View {
                 VStack(spacing: 16) {
                     ProgressView()
                         .tint(.brand)
-                    Text("Analyzing image…")
+                    Text("Analyzing \(images.count == 1 ? "image" : "images")…")
                         .font(.system(size: 14))
                         .foregroundColor(.textTer)
                 }
             } else {
                 ScrollView {
                     VStack(spacing: 16) {
+                        if !images.isEmpty {
+                            imageGallerySection
+                        }
                         workoutInfoSection
                         exercisesList
                         addExerciseButton
@@ -44,6 +55,7 @@ struct ReviewWorkoutView: View {
                     }
                     .padding(16)
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
         }
         .navigationTitle("Review Workout")
@@ -63,6 +75,13 @@ struct ReviewWorkoutView: View {
                     .foregroundColor(.brand)
                     .disabled(isAnalyzing)
             }
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
+                .foregroundColor(.brand)
+            }
         }
         .alert("No Exercises", isPresented: $showEmptyAlert) {
             Button("OK", role: .cancel) { }
@@ -70,8 +89,8 @@ struct ReviewWorkoutView: View {
             Text("Add at least one exercise before saving your workout.")
         }
         .task {
-            guard let image else { return }
-            let result = await WorkoutImageAnalyzer.analyze(image: image)
+            guard !images.isEmpty else { return }
+            let result = await WorkoutImageAnalyzer.analyze(images: images)
             workoutName = result.workoutName
             exercises = result.exercises
             isAnalyzing = false
@@ -79,6 +98,30 @@ struct ReviewWorkoutView: View {
     }
 
     // MARK: - Sections
+
+    private var imageGallerySection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("PHOTOS")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(.textTer)
+                .tracking(0.8)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(images.indices, id: \.self) { index in
+                        Image(uiImage: images[index])
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 100, height: 100)
+                            .clipShape(RoundedRectangle(cornerRadius: .rSM))
+                    }
+                }
+            }
+        }
+        .padding(14)
+        .background(Color.surface1)
+        .cornerRadius(.rMD)
+    }
 
     private var workoutInfoSection: some View {
         VStack(alignment: .leading, spacing: 10) {

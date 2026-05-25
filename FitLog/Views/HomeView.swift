@@ -21,8 +21,8 @@ struct HomeView: View {
         _store = StateObject(wrappedValue: WorkoutStore(context: ctx))
     }
 
-    // Sheet state – ready for when NewWorkoutView is added
     @State private var showNewWorkout = false
+    @State private var templateWorkout: WorkoutRecord?
 
     private var all: [WorkoutRecord] { Array(workouts) }
 
@@ -58,10 +58,16 @@ struct HomeView: View {
                         .padding(.top, 12)
 
                         // ── 3. Recent workouts
-                        RecentSection(workouts: Array(all.prefix(3))) { workout in
-                            ctx.delete(workout)
-                            try? ctx.save()
-                        }
+                        RecentSection(
+                            workouts: Array(all.prefix(3)),
+                            onDelete: { workout in
+                                ctx.delete(workout)
+                                try? ctx.save()
+                            },
+                            onDuplicate: { workout in
+                                templateWorkout = workout
+                            }
+                        )
                             .padding(.horizontal, 16)
                             .padding(.top, 20)
 
@@ -90,6 +96,34 @@ struct HomeView: View {
             .sheet(isPresented: $showNewWorkout) {
                 NewWorkoutView()
             }
+            .sheet(item: $templateWorkout) { workout in
+                NavigationStack {
+                    ReviewWorkoutView(
+                        templateName: workout.wrappedName,
+                        templateExercises: Self.draftExercises(from: workout),
+                        onSave: { templateWorkout = nil }
+                    )
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") { templateWorkout = nil }
+                                .foregroundColor(.brand)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static func draftExercises(from source: WorkoutRecord) -> [DraftExercise] {
+        source.exercisesArray.map { exercise in
+            DraftExercise(
+                name: exercise.wrappedName,
+                group: exercise.wrappedGroup,
+                hasGroup: exercise.group != nil && !exercise.wrappedGroup.isEmpty,
+                sets: exercise.setsArray.map { set in
+                    DraftSet(reps: Int(set.reps), weight: set.weight)
+                }
+            )
         }
     }
 }
@@ -186,8 +220,10 @@ struct LastTrainedBanner: View {
 struct RecentSection: View {
     let workouts: [WorkoutRecord]
     var onDelete: ((WorkoutRecord) -> Void)?
+    var onDuplicate: ((WorkoutRecord) -> Void)?
 
     @State private var selectedWorkout: WorkoutRecord?
+    @State private var workoutToTemplate: WorkoutRecord?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -213,12 +249,94 @@ struct RecentSection: View {
                     ) {
                         WorkoutCard(workout: w)
                     }
+                    .onLongPressGesture {
+                        workoutToTemplate = w
+                    }
                 }
             }
         }
         .navigationDestination(item: $selectedWorkout) { workout in
             WorkoutDetailView(workout: workout)
         }
+        .overlay {
+            if let workout = workoutToTemplate {
+                ZStack {
+                    Color.black.opacity(0.6)
+                        .ignoresSafeArea()
+                        .onTapGesture { workoutToTemplate = nil }
+
+                    VStack(spacing: 0) {
+                        VStack(spacing: 12) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 32, weight: .semibold))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [.brand, .brandAmber],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+
+                            Text("Repeat Workout")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundColor(.textPri)
+
+                            Text("Create a new workout today using")
+                                .font(.system(size: 14))
+                                .foregroundColor(.textSec)
+                            Text("\"\(workout.wrappedName)\"")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.brandAmber)
+                            Text("as a template?")
+                                .font(.system(size: 14))
+                                .foregroundColor(.textSec)
+                        }
+                        .padding(.top, 24)
+                        .padding(.bottom, 20)
+                        .padding(.horizontal, 20)
+
+                        Divider().overlay(Color.surface3)
+
+                        HStack(spacing: 0) {
+                            Button {
+                                workoutToTemplate = nil
+                            } label: {
+                                Text("No")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.textSec)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                            }
+
+                            Divider().overlay(Color.surface3)
+                                .frame(height: 44)
+
+                            Button {
+                                onDuplicate?(workout)
+                                workoutToTemplate = nil
+                            } label: {
+                                Text("Yes")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundStyle(
+                                        LinearGradient(
+                                            colors: [.brand, .brandAmber],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                            }
+                        }
+                    }
+                    .background(Color.surface1)
+                    .cornerRadius(.rLG)
+                    .padding(.horizontal, 40)
+                }
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: workoutToTemplate != nil)
     }
 }
 
